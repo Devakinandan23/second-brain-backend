@@ -12,38 +12,72 @@ datasource db {
   provider = "postgresql"
 }
 
-enum NoteType {
-  document
-  tweet
-  youtube
-  link
+enum sourceType {
+  YOUTUBE
+  TWITTER
+  NOTION
+  GOOGLE_DOC
+  WEBSITE
+  INTERNAL
 }
 
 model User {
-  id         Int     @id @default(autoincrement())
-  username   String  @unique
-  password   String
-  notes      Note[]
+  id              Int           @id @default(autoincrement())
+  username        String        @unique
+  password        String
+  notes           Note[]
+  shareinks       ShareLink[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Note {
-  id        String   @id @default(uuid()) @db.Uuid
+  id                String   @id @default(uuid()) @db.Uuid
 
-  type      NoteType
-  title     String
-  link      String?
+  sourceType        sourceType
+  title             String
+  link              String?
 
-  tags      String[]
+  tags              Tag[]
 
-  content   Json
-  user      User    @relation(fields: [userId],references: [id])
-  userId    Int
+  content           String?
+  description       String?
+  thumbnail         String?
+  authorName        String?
+  metadata          Json?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  user              User    @relation(fields: [userId],references: [id])
+  userId            Int
 
-  @@index([type])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([sourceType])
+  @@index([userId])
+
+  @@index([createdAt])
+
+  @@index([userId, createdAt])
+
+  @@index([title])
+
+}
+
+model Tag {
+  id          Int         @id @default(autoincrement())
+  title       String      @unique
+  note        Note        @relation(fields: [noteId],references: [id])
+  noteId      String      @db.Uuid 
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model ShareLink {
+  id            Int         @id @default(autoincrement())
+  hash          String      @unique
+  user          User        @relation(fields: [userId],references: [id])
+  userId        Int
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
