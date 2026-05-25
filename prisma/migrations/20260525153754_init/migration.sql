@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "sourceType" AS ENUM ('YOUTUBE', 'TWITTER', 'NOTION', 'GOOGLE_DOC', 'WEBSITE', 'INTERNAL');
+CREATE TYPE "SourceType" AS ENUM ('YOUTUBE', 'TWITTER', 'NOTION', 'GOOGLE_DOC', 'WEBSITE', 'INTERNAL');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -15,7 +15,7 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "Note" (
     "id" UUID NOT NULL,
-    "sourceType" "sourceType" NOT NULL,
+    "sourceType" "SourceType" NOT NULL,
     "title" TEXT NOT NULL,
     "link" TEXT,
     "content" TEXT,
@@ -34,7 +34,6 @@ CREATE TABLE "Note" (
 CREATE TABLE "Tag" (
     "id" SERIAL NOT NULL,
     "title" TEXT NOT NULL,
-    "noteId" UUID NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -50,6 +49,14 @@ CREATE TABLE "ShareLink" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ShareLink_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "_NoteToTag" (
+    "A" UUID NOT NULL,
+    "B" INTEGER NOT NULL,
+
+    CONSTRAINT "_NoteToTag_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -71,13 +78,22 @@ CREATE INDEX "Note_userId_createdAt_idx" ON "Note"("userId", "createdAt");
 CREATE INDEX "Note_title_idx" ON "Note"("title");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Tag_title_key" ON "Tag"("title");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "ShareLink_hash_key" ON "ShareLink"("hash");
+
+-- CreateIndex
+CREATE INDEX "_NoteToTag_B_index" ON "_NoteToTag"("B");
 
 -- AddForeignKey
 ALTER TABLE "Note" ADD CONSTRAINT "Note_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Tag" ADD CONSTRAINT "Tag_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "Note"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ShareLink" ADD CONSTRAINT "ShareLink_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ShareLink" ADD CONSTRAINT "ShareLink_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "_NoteToTag" ADD CONSTRAINT "_NoteToTag_A_fkey" FOREIGN KEY ("A") REFERENCES "Note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_NoteToTag" ADD CONSTRAINT "_NoteToTag_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;

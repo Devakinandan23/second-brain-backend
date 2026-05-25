@@ -9,8 +9,25 @@ noteRoutes.get("/brain/:shareLink",(req,res)=>{
 
 })
 
-noteRoutes.get("/content",(req,res)=>{
-    
+noteRoutes.get("/content",authMiddleware,async (req,res)=>{
+    if(!req.userId){
+        res.status(401).json({
+            message: "unauthorized"
+        })
+        return
+    }
+    const content = await prisma.note.findMany({
+        where: {
+            userId: req.userId
+        },
+        include: {
+            tags: true
+        }
+    });
+
+    res.status(200).json({
+        content
+    });
 })
 
 noteRoutes.post("/content", authMiddleware,async (req,res)=>{
@@ -30,10 +47,10 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
         return
     }
 
-    await prisma.note.create({
+    const content = await prisma.note.create({
         data: {
             sourceType: parsedData.data.sourceType,
-            link: parsedData.data.link,
+            link: parsedData.data.link ?? null,
             title: parsedData.data.title,
             content: parsedData.data.content ?? null,
             description: parsedData.data.description ?? null,
@@ -53,13 +70,50 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
             }
         }
     })
+    res.status(200).json({
+        message: "content successfully added"
+    })
 })
 
 noteRoutes.post("/brain/share",(req,res)=>{
 
 })
 
-noteRoutes.delete("/content",(req,res)=>{
+noteRoutes.delete("/content",authMiddleware, async (req,res)=>{
+    try{
+    const contentId = String(req.body.contentId);
 
+    if(!contentId){
+        res.status(403).json({
+            message: "ID Incorrect"
+        })
+        return
+    }
+
+    if(!req.userId){
+        res.status(401).json({
+            message: "unauthorized"
+        })
+        return
+    }
+
+    await prisma.note.delete({
+        where:{
+            userId: req.userId,
+            id: contentId
+        },
+        include:{
+            tags: true
+        }
+    })
+    res.status(200).json({
+        message: "successfully deleted"
+    })
+    }catch(error){
+        return res.status(500).json({
+            message: "Internal Error",
+            error: `${error}`
+        })
+    }
 })
 
