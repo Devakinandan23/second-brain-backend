@@ -43,3 +43,7 @@ export const contentSchema = z.object({
             .optional()
             .transform((v) => v ?? null)
 })
+
+export const linkSchema = z.object({
+    share: z.boolean()
+}) 

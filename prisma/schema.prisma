@@ -26,14 +26,14 @@ model User {
   username          String        @unique
   password          String
   notes             Note[]
-  shareLinks        ShareLink[]
+  shareLink         ShareLink?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
 
 model Note {
-  id                String   @id @default(uuid()) @db.Uuid
+  id                String        @id @default(uuid()) @db.Uuid
 
   sourceType        SourceType
   title             String
@@ -47,11 +47,13 @@ model Note {
   authorName        String?
   metadata          Json?
 
-  user              User    @relation(fields: [userId],references: [id])
+  isPublic          Boolean       @default(false)
+
+  user              User          @relation(fields: [userId],references: [id])
   userId            Int
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@index([sourceType])
   @@index([userId])
@@ -75,8 +77,9 @@ model Tag {
 model ShareLink {
   id            Int         @id @default(autoincrement())
   hash          String      @unique
+  isActive      Boolean     @default(true)
   user          User        @relation(fields: [userId],references: [id])
-  userId        Int
+  userId        Int         @unique
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
