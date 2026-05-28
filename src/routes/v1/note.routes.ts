@@ -6,8 +6,27 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const noteRoutes = Router();
 
-noteRoutes.get("/brain/:shareLink",(req,res)=>{
-
+noteRoutes.get("/brain/:shareLink",async(req,res)=>{
+    const {shareLink} = req.params;
+    if(!shareLink){
+        res.status(400).json({
+            message: "share link not recived"
+        })
+        return
+    }
+    const posts = await prisma.note.findMany({
+        where:{
+            user: {
+                shareLink:{
+                    hash: shareLink
+                }
+            }
+        }
+    });
+    console.log("posts",posts);
+    res.status(200).json({
+        posts: posts
+    })
 })
 
 noteRoutes.get("/content",authMiddleware,async (req,res)=>{
