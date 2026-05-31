@@ -41,7 +41,43 @@ export const contentSchema = z.object({
             .record(z.string(), z.unknown())
             .nullable()
             .optional()
-            .transform((v) => v ?? null)
+            .transform((v) => v ?? null),
+})
+
+
+export const contentUpdateSchema = z.object({
+    sourceType: contentTypeSchema,
+    link: z.url().optional().nullable(),
+    title: z
+        .string()
+        .max(200, "Title cannot exceed 200 characters")
+        .optional(),
+    tags: z
+            .array(
+                z
+                .string()
+                .min(1, "Tag cannot be empty")
+                .max(30, "Tag too long")
+                .trim()
+                .toLowerCase()
+            )
+            .max(10, "Maximum 10 tags allowed")
+            .optional()
+            .nullable(),
+    content: z
+        .string()
+        .optional()
+        .nullable(),
+
+    description: z.string().optional().nullable(),
+    thumbnail: z.string().optional().nullable(),
+    authorName: z.string().optional().nullable(),
+    metadata: z
+            .record(z.string(), z.unknown())
+            .nullable()
+            .optional()
+            .transform((v) => v ?? null),
+    isPublic: z.boolean().optional()
 })
 
 export const linkSchema = z.object({

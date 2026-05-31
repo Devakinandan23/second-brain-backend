@@ -1,12 +1,13 @@
 import { Router } from "express";
-import { contentSchema, linkSchema } from "../../schema/note.schema.js";
+import { contentSchema, contentUpdateSchema, linkSchema} from "../../schema/note.schema.js";
 import { prisma } from "../../lib/prisma.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as isValidUUID } from 'uuid';
 
 export const noteRoutes = Router();
 
 noteRoutes.get("/brain/:shareLink",async(req,res)=>{
+    try{
     const {shareLink} = req.params;
     if(!shareLink){
         res.status(400).json({
@@ -14,19 +15,50 @@ noteRoutes.get("/brain/:shareLink",async(req,res)=>{
         })
         return
     }
-    const posts = await prisma.note.findMany({
+
+    const shareLinkData = await prisma.shareLink.findUnique({
         where:{
-            user: {
-                shareLink:{
-                    hash: shareLink
-                }
-            }
+            hash: shareLink,
+            isActive: true
+        },
+        select: {
+            user:{
+                select:{
+                        id: true,
+                        username: true,
+                        notes:{
+                            where:{
+                                isPublic: true
+                            },
+                            select:{
+                                title: true,
+                                link: true,
+                                content: true,
+                                description: true,
+                                thumbnail: true
+                            }
+                        }
+                    },
+                },
         }
-    });
-    console.log("posts",posts);
-    res.status(200).json({
-        posts: posts
     })
+    console.log("shareLinkData",JSON.stringify(shareLinkData,null,2));
+
+    if(!shareLinkData || !shareLinkData?.user){
+        return res.status(400).json({
+            message: "ShareLink not Found"
+        })
+    }
+
+    res.status(200).json({
+        username: shareLinkData.user.username,
+        content: shareLinkData.user.notes
+    })
+    }catch(error){
+        return res.status(500).json({
+            message: "internal server error"
+        })
+    }
 })
 
 noteRoutes.get("/content",authMiddleware,async (req,res)=>{
@@ -92,6 +124,89 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
     })
     res.status(200).json({
         message: "content successfully added"
+    })
+})
+
+noteRoutes.patch("/content/:id", authMiddleware,async (req,res)=>{
+    const parsedData = contentUpdateSchema.safeParse(req.body);
+    const noteId = String(req.params.id);
+
+    if(!noteId || !isValidUUID(noteId)){
+        res.status(400).json({
+            message: "Invalid noteId format. Must be a valid UUID."
+        })
+        return
+    }
+
+    if(!parsedData.success){
+        res.status(403).json({
+            message: "validation error"
+        })
+        return
+    }
+
+    if(!req.userId){
+        res.status(401).json({
+            message: "unauthorized"
+        })
+        return
+    }
+
+    const updateData: Record<string, any> = {};
+
+    if (parsedData.data.title !== undefined) {
+        updateData.title = parsedData.data.title;
+    }
+
+    if (parsedData.data.content !== undefined) {
+        updateData.content = parsedData.data.content;
+    }
+
+    if (parsedData.data.description !== undefined) {
+        updateData.description = parsedData.data.description;
+    }
+
+    if (parsedData.data.link !== undefined) {
+        updateData.link = parsedData.data.link;
+    }
+
+    if (parsedData.data.thumbnail !== undefined) {
+        updateData.thumbnail = parsedData.data.thumbnail;
+    }
+
+    if (parsedData.data.authorName !== undefined) {
+        updateData.authorName = parsedData.data.authorName;
+    }
+
+    if (parsedData.data.sourceType !== undefined) {
+        updateData.sourceType = parsedData.data.sourceType;
+    }
+
+    if (parsedData.data.metadata !== undefined) {
+        updateData.metadata = parsedData.data.metadata;
+    }
+
+    if (parsedData.data.isPublic !== undefined) {
+        updateData.isPublic = parsedData.data.isPublic;
+    }
+
+    const result = await prisma.note.updateMany({
+        where:{
+            id: noteId,
+            userId: req.userId
+        },
+        data: updateData
+    })
+
+    if (result.count === 0) {
+        res.status(404).json({
+            message: "Content not found or unauthorized"
+        })
+        return
+    }
+
+    res.status(200).json({
+        message: "content successfully updated"
     })
 })
 
@@ -194,7 +309,7 @@ noteRoutes.post("/brain/share",authMiddleware, async (req,res)=>{
 
 noteRoutes.delete("/content",authMiddleware, async (req,res)=>{
     try{
-    const contentId = String(req.body.contentId);
+    const contentId = req.body.contentId;
 
     if(!contentId){
         res.status(403).json({
@@ -202,6 +317,8 @@ noteRoutes.delete("/content",authMiddleware, async (req,res)=>{
         })
         return
     }
+
+    const contentIdString = String(contentId);
 
     if(!req.userId){
         res.status(401).json({
@@ -213,7 +330,7 @@ noteRoutes.delete("/content",authMiddleware, async (req,res)=>{
     await prisma.note.delete({
         where:{
             userId: req.userId,
-            id: contentId
+            id: contentIdString
         },
         include:{
             tags: true
