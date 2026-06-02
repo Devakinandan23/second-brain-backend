@@ -1,4 +1,4 @@
-import z from 'zod';
+import z, { optional } from 'zod';
 import { describe } from 'zod/v4/core';
 
 const contentTypeSchema = z.enum([
@@ -16,11 +16,16 @@ const contentTypeSchema = z.enum([
 //             metadata: parsedData.data.metadata 
 
 export const contentSchema = z.object({
-    sourceType: contentTypeSchema,
     link: z.url(),
     title: z
         .string()
         .max(200, "Title cannot exceed 200 characters"),
+    extractedTitle:
+        z
+        .string()
+        .max(1000, "Title cannot exceed 1000 characters")
+        .optional()
+        .nullable(),
     tags: z
             .array(
                 z
@@ -34,24 +39,29 @@ export const contentSchema = z.object({
     content: z
         .string()
         .nullable(),
-    description: z.string().nullable(),
-    thumbnail: z.string().nullable(),
+    description: z.string().optional().nullable(),
+    thumbnail: z.string().optional().nullable(),
     authorName: z.string().nullable(),
-    metadata: z
-            .record(z.string(), z.unknown())
-            .nullable()
-            .optional()
-            .transform((v) => v ?? null),
+    // metadata: z
+    //         .record(z.string(), z.unknown())
+    //         .nullable()
+    //         .optional()
+    //         .transform((v) => v ?? null),
 })
 
 
 export const contentUpdateSchema = z.object({
-    sourceType: contentTypeSchema,
     link: z.url().optional().nullable(),
     title: z
         .string()
         .max(200, "Title cannot exceed 200 characters")
         .optional(),
+    extractedTitle:
+        z
+        .string()
+        .max(1000, "Title cannot exceed 1000 characters")
+        .optional()
+        .nullable(),
     tags: z
             .array(
                 z

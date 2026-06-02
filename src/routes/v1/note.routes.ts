@@ -3,6 +3,8 @@ import { contentSchema, contentUpdateSchema, linkSchema} from "../../schema/note
 import { prisma } from "../../lib/prisma.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { v4 as uuidv4, validate as isValidUUID } from 'uuid';
+import { extractMetadata } from "../../services/ingestion/extractMetadata.js";
+
 
 export const noteRoutes = Router();
 
@@ -83,6 +85,7 @@ noteRoutes.get("/content",authMiddleware,async (req,res)=>{
 })
 
 noteRoutes.post("/content", authMiddleware,async (req,res)=>{
+    try{
     const parsedData = contentSchema.safeParse(req.body);
 
     if(!parsedData.success){
@@ -99,16 +102,35 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
         return
     }
 
+    const new_content = JSON.stringify(await extractMetadata(parsedData.data.link),null,2);
+    console.log("Meta&&",new_content);
+    const extractedData = await extractMetadata(parsedData.data.link);
+    if(!extractedData){
+        res.status(400).json({
+            message: "error while extracting data"
+        })
+        return
+    }
+    if(!extractedData.title){
+        res.status(400).json({
+            message: "error while extracting title"
+        })
+        return
+    }
+    console.log("Meta&&&",new_content);
+    // console.log("Meta&&&", JSON.stringify(extractMetadata(parsedData.data.link), null, 2));
+
     const content = await prisma.note.create({
         data: {
-            sourceType: parsedData.data.sourceType,
+            sourceType:extractedData.sourceType,
             link: parsedData.data.link ?? null,
-            title: parsedData.data.title,
+            title: parsedData.data.title ?? extractedData.title,
+            extractedTitle: extractedData.title ?? null,
             content: parsedData.data.content ?? null,
-            description: parsedData.data.description ?? null,
-            thumbnail: parsedData.data.thumbnail ?? null,
+            description: extractedData.description ?? null,
+            thumbnail: extractedData.thumbnail ?? null,
             authorName: parsedData.data.authorName ?? null,        
-            metadata: parsedData.data.metadata ? (parsedData.data.metadata as any) : undefined,
+            metadata: extractedData.metadata ? (extractedData.metadata as any) : undefined,
             userId: req.userId,
             tags: {
                 connectOrCreate: parsedData.data.tags.map((tag) => ({
@@ -122,9 +144,16 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
             }
         }
     })
+    console.log("&^&%&^%&^",content);
     res.status(200).json({
-        message: "content successfully added"
+        message: "content successfully added",
+        content
     })
+    }catch(error){
+        return res.status(400).json({
+            error: `Error is ${error}`
+        })
+    }
 })
 
 noteRoutes.patch("/content/:id", authMiddleware,async (req,res)=>{
@@ -158,6 +187,10 @@ noteRoutes.patch("/content/:id", authMiddleware,async (req,res)=>{
         updateData.title = parsedData.data.title;
     }
 
+    if (parsedData.data.extractedTitle !== undefined) {
+        updateData.extractedTitle = parsedData.data.extractedTitle;
+    }
+
     if (parsedData.data.content !== undefined) {
         updateData.content = parsedData.data.content;
     }
@@ -178,9 +211,6 @@ noteRoutes.patch("/content/:id", authMiddleware,async (req,res)=>{
         updateData.authorName = parsedData.data.authorName;
     }
 
-    if (parsedData.data.sourceType !== undefined) {
-        updateData.sourceType = parsedData.data.sourceType;
-    }
 
     if (parsedData.data.metadata !== undefined) {
         updateData.metadata = parsedData.data.metadata;
