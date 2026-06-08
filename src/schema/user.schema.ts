@@ -4,12 +4,12 @@ export const userSchema = z.object({
     username: z
         .string()
         .min(3)
-        .max(10)
+        .max(50)
         .regex(/[a-zA-Z]/, "Invalid username"),
     password: z
         .string()
         .min(8)
-        .max(20)
+        .max(50)
         .regex(/[A-Z]/, "Need uppercase")
         .regex(/[a-z]/, "Need lowercase")
         .regex(/\d/, "Need number")

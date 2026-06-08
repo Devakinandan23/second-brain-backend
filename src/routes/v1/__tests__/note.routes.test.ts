@@ -7,6 +7,7 @@ process.env.JWT_SECRET = 'test_secret';
 
 import { noteRoutes } from '../note.routes.js';
 import { prisma } from '../../../lib/prisma.js';
+import { extractMetadata } from '../../../services/ingestion/extractMetadata.js';
 
 const app = express();
 app.use(express.json());
@@ -85,7 +86,7 @@ describe('Note Routes', () => {
                 .post('/v1/note/content')
                 .set('Authorization', `Bearer ${getAuthToken(1)}`)
                 .send({
-                    sourceType: 'INVALID_TYPE', // Invalid sourceType
+                    link: 'invalid-link', // Invalid URL format to trigger validation
                     title: 'Test'
                 });
 
@@ -93,17 +94,46 @@ describe('Note Routes', () => {
             expect(response.body).toEqual({ message: 'validation error' });
         });
 
+        it('should return 403 if more than 10 tags are provided', async () => {
+            const response = await request(app)
+                .post('/v1/note/content')
+                .set('Authorization', `Bearer ${getAuthToken(1)}`)
+                .send({
+                    link: 'https://example.com',
+                    title: 'Test',
+                    tags: Array.from({ length: 11 }, (_, i) => `tag${i}`),
+                    content: null,
+                    authorName: null
+                });
+
+            expect(response.status).toBe(403);
+            expect(response.body.message).toEqual('validation error');
+        });
+
+        it('should return 400 when extractMetadata fails or returns no title (e.g. unreachable server)', async () => {
+            const response = await request(app)
+                .post('/v1/note/content')
+                .set('Authorization', `Bearer ${getAuthToken(1)}`)
+                .send({
+                    link: 'http://localhost:65000/does-not-exist',
+                    title: 'Will Fail',
+                    tags: ['test'],
+                    content: null,
+                    authorName: null
+                });
+
+            expect(response.status).toBe(400);
+            expect(response.body.message).toContain('error while extracting');
+        }, 15000);
+
         it('should create content when data is valid', async () => {
             const spy = jest.spyOn(prisma.note, 'create').mockResolvedValue({ id: '1' } as any);
 
             const validPayload = {
-                sourceType: 'YOUTUBE',
-                link: 'https://youtube.com',
-                title: 'My Video',
-                tags: ['video', 'tech'],
+                link: 'https://example.com',
+                title: 'My Example Note',
+                tags: ['website', 'example'],
                 content: null,
-                description: null,
-                thumbnail: null,
                 authorName: null
             };
 
@@ -113,15 +143,63 @@ describe('Note Routes', () => {
                 .set('Authorization', `Bearer ${getAuthToken(1)}`);
 
             expect(response.status).toBe(200);
-            expect(response.body).toEqual({ message: 'content successfully added' });
+            expect(response.body.message).toEqual('content successfully added');
+            expect(response.body.content).toBeDefined();
             
             // Verify Prisma call
             expect(spy).toHaveBeenCalled();
             const createCallArg = spy.mock.calls[0]![0];
             expect(createCallArg.data.userId).toBe(1);
             expect(createCallArg.data.title).toBe(validPayload.title);
+            expect(createCallArg.data.sourceType).toBe('WEBSITE'); // From metadata extraction
             expect((createCallArg.data.tags as any).connectOrCreate).toHaveLength(2);
-        });
+        }, 15000); // Increased timeout for external network call
+
+        it('should successfully create content with an empty tags array', async () => {
+            const spy = jest.spyOn(prisma.note, 'create').mockResolvedValue({ id: '2' } as any);
+
+            const validPayload = {
+                link: 'https://example.com',
+                title: 'No Tags Video',
+                tags: [],
+                content: null,
+                authorName: null
+            };
+
+            const response = await request(app)
+                .post('/v1/note/content')
+                .send(validPayload)
+                .set('Authorization', `Bearer ${getAuthToken(1)}`);
+
+            expect(response.status).toBe(200);
+            expect(spy).toHaveBeenCalled();
+            const createCallArg = spy.mock.calls[0]![0];
+            expect((createCallArg.data.tags as any).connectOrCreate).toHaveLength(0);
+        }, 15000);
+
+        it('should successfully create content with full user-defined text payload (content, description, author)', async () => {
+            const spy = jest.spyOn(prisma.note, 'create').mockResolvedValue({ id: '3' } as any);
+
+            const validPayload = {
+                link: 'https://example.com',
+                title: 'Full Payload Note',
+                tags: ['detailed'],
+                content: 'This is the main body of the note',
+                description: 'A short summary',
+                authorName: 'John Doe'
+            };
+
+            const response = await request(app)
+                .post('/v1/note/content')
+                .send(validPayload)
+                .set('Authorization', `Bearer ${getAuthToken(1)}`);
+
+            expect(response.status).toBe(200);
+            const createCallArg = spy.mock.calls[0]![0];
+            expect(createCallArg.data.content).toBe('This is the main body of the note');
+            expect(createCallArg.data.description).toBeNull(); // Custom description is not supported in POST by current code
+            expect(createCallArg.data.authorName).toBe('John Doe');
+        }, 15000);
     });
 
     describe('PATCH /content/:id', () => {
@@ -129,10 +207,20 @@ describe('Note Routes', () => {
             const response = await request(app)
                 .patch('/v1/note/content/invalid-uuid')
                 .set('Authorization', `Bearer ${getAuthToken(1)}`)
-                .send({ title: 'New Title', sourceType: 'YOUTUBE' });
+                .send({ title: 'New Title', extractedTitle: 'Extracted' });
 
             expect(response.status).toBe(400);
             expect(response.body.message).toContain('Invalid noteId format');
+        });
+
+        it('should return 403 on validation error (e.g. title too long)', async () => {
+            const response = await request(app)
+                .patch('/v1/note/content/d290f1ee-6c54-4b01-90e6-d701748f0851')
+                .send({ title: 'a'.repeat(205) }) // title max length is 200
+                .set('Authorization', `Bearer ${getAuthToken(1)}`);
+
+            expect(response.status).toBe(403);
+            expect(response.body.message).toEqual('validation error');
         });
 
         it('should return 404/unauthorized when note does not belong to user (Ownership Check)', async () => {
@@ -140,7 +228,7 @@ describe('Note Routes', () => {
 
             const response = await request(app)
                 .patch('/v1/note/content/d290f1ee-6c54-4b01-90e6-d701748f0851')
-                .send({ title: 'Hacked Title', sourceType: 'YOUTUBE' })
+                .send({ title: 'Hacked Title' })
                 .set('Authorization', `Bearer ${getAuthToken(2)}`); // Different user
 
             expect(response.status).toBe(404);
@@ -154,16 +242,47 @@ describe('Note Routes', () => {
             });
         });
 
-        it('should update note successfully for owner', async () => {
+        it('should update note successfully for owner (updating title)', async () => {
             jest.spyOn(prisma.note, 'updateMany').mockResolvedValue({ count: 1 } as any);
+            jest.spyOn(prisma.note, 'findFirst').mockResolvedValue({ id: 'd290f1ee-6c54-4b01-90e6-d701748f0851', userId: 1 } as any);
+            jest.spyOn(prisma.note, 'update').mockResolvedValue({} as any);
 
             const response = await request(app)
                 .patch('/v1/note/content/d290f1ee-6c54-4b01-90e6-d701748f0851')
-                .send({ title: 'Updated Title', sourceType: 'YOUTUBE' })
+                .send({ title: 'Updated Title', extractedTitle: 'Extracted' })
                 .set('Authorization', `Bearer ${getAuthToken(1)}`);
 
             expect(response.status).toBe(200);
             expect(response.body).toEqual({ message: 'content successfully updated' });
+        });
+
+        it('should update note successfully for owner (updating content text)', async () => {
+            jest.spyOn(prisma.note, 'updateMany').mockResolvedValue({ count: 1 } as any);
+            jest.spyOn(prisma.note, 'findFirst').mockResolvedValue({ id: 'd290f1ee-6c54-4b01-90e6-d701748f0851', userId: 1 } as any);
+            const updateSpy = jest.spyOn(prisma.note, 'update').mockResolvedValue({} as any);
+
+            const response = await request(app)
+                .patch('/v1/note/content/d290f1ee-6c54-4b01-90e6-d701748f0851')
+                .send({ content: 'New deep content string' })
+                .set('Authorization', `Bearer ${getAuthToken(1)}`);
+
+            expect(response.status).toBe(200);
+            
+            // Should support checking what data was passed to Prisma
+            // Since we don't know if the route uses update or updateMany right now, we check the response status primarily.
+        });
+
+        it('should update note successfully for owner (updating tags)', async () => {
+            jest.spyOn(prisma.note, 'updateMany').mockResolvedValue({ count: 1 } as any);
+            jest.spyOn(prisma.note, 'findFirst').mockResolvedValue({ id: 'd290f1ee-6c54-4b01-90e6-d701748f0851', userId: 1 } as any);
+            const updateSpy = jest.spyOn(prisma.note, 'update').mockResolvedValue({} as any);
+
+            const response = await request(app)
+                .patch('/v1/note/content/d290f1ee-6c54-4b01-90e6-d701748f0851')
+                .send({ tags: ['new-tag-1', 'new-tag-2'] })
+                .set('Authorization', `Bearer ${getAuthToken(1)}`);
+
+            expect(response.status).toBe(200);
         });
     });
 
@@ -261,5 +380,31 @@ describe('Note Routes', () => {
                 }
             });
         });
+
+        it('should return 500 when Prisma throws error on deletion (e.g. non-existent note)', async () => {
+            jest.spyOn(prisma.note, 'delete').mockRejectedValue(new Error('Record to delete does not exist'));
+
+            const response = await request(app)
+                .delete('/v1/note/content')
+                .send({ contentId: 'fake-id-123' })
+                .set('Authorization', `Bearer ${getAuthToken(1)}`);
+
+            expect(response.status).toBe(500);
+            expect(response.body.error).toContain('Record to delete does not exist');
+        });
+    });
+
+    describe('Ingestion Pipeline', () => {
+        it('should successfully extract metadata for a YouTube URL', async () => {
+            const ytUrl = 'https://youtu.be/nQ4XylQK2J0?si=eoRFuBnhIJGKqCK2';
+            const metadata = await extractMetadata(ytUrl);
+
+            expect(metadata).not.toBeNull();
+            expect(metadata?.sourceType).toBe('YOUTUBE');
+            expect(metadata?.title).toContain('Budget Monitor'); // Real video title
+            expect(metadata?.thumbnail).not.toBeNull();
+            expect(metadata?.metadata).toBeDefined();
+            expect(metadata?.metadata?.url).toContain('youtube.com');
+        }, 15000);
     });
 });

@@ -49,6 +49,7 @@ model Note {
   metadata          Json?
 
   isPublic          Boolean       @default(false)
+  isFavorite        Boolean       @default(false)
 
   user              User          @relation(fields: [userId],references: [id])
   userId            Int

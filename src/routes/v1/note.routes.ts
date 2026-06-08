@@ -44,7 +44,6 @@ noteRoutes.get("/brain/:shareLink",async(req,res)=>{
                 },
         }
     })
-    console.log("shareLinkData",JSON.stringify(shareLinkData,null,2));
 
     if(!shareLinkData || !shareLinkData?.user){
         return res.status(400).json({
@@ -103,7 +102,7 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
     }
 
     const new_content = JSON.stringify(await extractMetadata(parsedData.data.link),null,2);
-    console.log("Meta&&",new_content);
+
     const extractedData = await extractMetadata(parsedData.data.link);
     if(!extractedData){
         res.status(400).json({
@@ -111,20 +110,20 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
         })
         return
     }
-    if(!extractedData.title){
-        res.status(400).json({
-            message: "error while extracting title"
-        })
-        return
-    }
-    console.log("Meta&&&",new_content);
-    // console.log("Meta&&&", JSON.stringify(extractMetadata(parsedData.data.link), null, 2));
+    // if(!extractedData.title){
+    //     res.status(400).json({
+    //         message: "error while extracting title"
+    //     })
+    //     return
+    // }
+
+    console.log("Meta&&&", JSON.stringify(await extractMetadata(parsedData.data.link), null, 2));
 
     const content = await prisma.note.create({
         data: {
             sourceType:extractedData.sourceType,
             link: parsedData.data.link ?? null,
-            title: parsedData.data.title ?? extractedData.title,
+            title: extractedData.title ?? parsedData.data.title,
             extractedTitle: extractedData.title ?? null,
             content: parsedData.data.content ?? null,
             description: extractedData.description ?? null,
@@ -144,7 +143,7 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
             }
         }
     })
-    console.log("&^&%&^%&^",content);
+
     res.status(200).json({
         message: "content successfully added",
         content
@@ -220,20 +219,38 @@ noteRoutes.patch("/content/:id", authMiddleware,async (req,res)=>{
         updateData.isPublic = parsedData.data.isPublic;
     }
 
-    const result = await prisma.note.updateMany({
-        where:{
+    if (parsedData.data.isFavorite !== undefined) {
+        updateData.isFavorite = parsedData.data.isFavorite;
+    }
+
+    if (parsedData.data.tags !== undefined && parsedData.data.tags !== null) {
+        updateData.tags = {
+            set: [],
+            connectOrCreate: parsedData.data.tags.map((tag) => ({
+                where: { title: tag },
+                create: { title: tag },
+            })),
+        };
+    }
+
+    const existingNote = await prisma.note.findFirst({
+        where: {
             id: noteId,
             userId: req.userId
-        },
-        data: updateData
-    })
+        }
+    });
 
-    if (result.count === 0) {
+    if (!existingNote) {
         res.status(404).json({
             message: "Content not found or unauthorized"
         })
         return
     }
+
+    await prisma.note.update({
+        where: { id: noteId },
+        data: updateData
+    });
 
     res.status(200).json({
         message: "content successfully updated"

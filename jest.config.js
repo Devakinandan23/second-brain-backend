@@ -13,4 +13,5 @@ export default {
       },
     ],
   },
+  modulePathIgnorePatterns: ["<rootDir>/dist/"],
 };

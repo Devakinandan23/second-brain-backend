@@ -6,7 +6,7 @@ type SourceType = "YOUTUBE" | "TWITTER" | "NOTION" | "GOOGLE_DOC" | "WEBSITE" | 
 function classifySource(link: string) {
     const myUrl = new URL(link);
 
-    console.log("myUrl%%",myUrl);
+    console.log("URL^&^&^&",myUrl);
     let source:SourceType = "WEBSITE";
 
     if (myUrl.hostname == "www.youtube.com"){
@@ -14,6 +14,9 @@ function classifySource(link: string) {
     }
     else if (myUrl.hostname == "youtu.be"){
         source = "YOUTUBE"
+    }
+    else if (myUrl.hostname == "x.com"){
+        source = "TWITTER"
     }
     else if (myUrl.hostname == "www.x.com"){
         source = "TWITTER"
@@ -41,12 +44,13 @@ export async function extractMetadata(link: string) {
         }, 
         timeout: 5000 
     });
+    console.log("+++++====",response.data.slice(0, 2000));
 
     const sourceType = classifySource(link);
     
     const $ = cheerio.load(response.data);
     
-    const title = $('meta[property="og:title"]').attr('content') || $('title').text() || null;
+    const title = $('meta[property="og:title"]').attr('content') || $('meta[property="title"]').attr('content') || $('title').text() || null;
     const description = $('meta[property="og:description"]').attr('content') || $('meta[name="description"]').attr('content') || null;
     const thumbnail = $('meta[property="og:image"]').attr('content') || $('meta[name="image"]').attr('content') || null;
 

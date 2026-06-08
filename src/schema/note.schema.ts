@@ -87,7 +87,8 @@ export const contentUpdateSchema = z.object({
             .nullable()
             .optional()
             .transform((v) => v ?? null),
-    isPublic: z.boolean().optional()
+    isPublic: z.boolean().optional(),
+    isFavorite: z.boolean().optional()
 })
 
 export const linkSchema = z.object({
