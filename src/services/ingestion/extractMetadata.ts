@@ -30,6 +30,9 @@ function classifySource(link: string) {
     else if (myUrl.hostname == "www.docs.google.com"){
         source = "GOOGLE_DOC"
     }
+    else if (myUrl.hostname == "second-brain.app" || link.includes("second-brain.app/note")){
+        source = "INTERNAL"
+    }
     else{
         source = "WEBSITE"
     }
@@ -38,6 +41,18 @@ function classifySource(link: string) {
 
 export async function extractMetadata(link: string) {
     try{
+    const sourceType = classifySource(link);
+
+    if (sourceType === "INTERNAL") {
+        return {
+            title: null,
+            description: null,
+            thumbnail: null,
+            metadata: {} as { site_name: string | null; type: string | null; url: string | null; },
+            sourceType: "INTERNAL" as SourceType
+        };
+    }
+
     const response = await axios.get(link,{
         headers: {
             "User-Agent": "MyAwesomeApp/1.0 (Contact: darik32@gmail.com)"
@@ -46,8 +61,7 @@ export async function extractMetadata(link: string) {
     });
     console.log("+++++====",response.data.slice(0, 2000));
 
-    const sourceType = classifySource(link);
-    
+
     const $ = cheerio.load(response.data);
     
     const title = $('meta[property="og:title"]').attr('content') || $('meta[property="title"]').attr('content') || $('title').text() || null;
