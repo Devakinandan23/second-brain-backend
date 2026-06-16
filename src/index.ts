@@ -5,13 +5,17 @@ import jwt from 'jsonwebtoken';
 import { userSchema } from './schema/user.schema.js';
 import { authRoutes } from './routes/v1/auth.routes.js';
 import { noteRoutes } from './routes/v1/note.routes.js';
+import { trashRoutes } from './routes/v1/trash.routes.js';
+import { brainRoutes } from './routes/v1/brain.routes.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 app.use("/api/v1",authRoutes);
-app.use("/api/v1",noteRoutes);
+app.use("/api/v1/content",noteRoutes);
+app.use("/api/v1/brain",brainRoutes);
+app.use("/api/v1/trash",trashRoutes);
 
 app.get("/all", async (req,res)=>{
     const notes = await prisma.note.findMany();

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { contentSchema, contentUpdateSchema, linkSchema} from "../../schema/note.schema.js";
+import { contentSchema, contentUpdateSchema} from "../../schema/note.schema.js";
 import { prisma } from "../../lib/prisma.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { v4 as uuidv4, validate as isValidUUID } from 'uuid';
@@ -8,61 +8,7 @@ import { extractMetadata } from "../../services/ingestion/extractMetadata.js";
 
 export const noteRoutes = Router();
 
-noteRoutes.get("/brain/:shareLink",async(req,res)=>{
-    try{
-    const {shareLink} = req.params;
-    if(!shareLink){
-        res.status(400).json({
-            message: "share link not recived"
-        })
-        return
-    }
-
-    const shareLinkData = await prisma.shareLink.findUnique({
-        where:{
-            hash: shareLink,
-            isActive: true
-        },
-        select: {
-            user:{
-                select:{
-                        id: true,
-                        username: true,
-                        notes:{
-                            where:{
-                                isPublic: true
-                            },
-                            select:{
-                                title: true,
-                                link: true,
-                                content: true,
-                                description: true,
-                                thumbnail: true
-                            }
-                        }
-                    },
-                },
-        }
-    })
-
-    if(!shareLinkData || !shareLinkData?.user){
-        return res.status(400).json({
-            message: "ShareLink not Found"
-        })
-    }
-
-    res.status(200).json({
-        username: shareLinkData.user.username,
-        content: shareLinkData.user.notes
-    })
-    }catch(error){
-        return res.status(500).json({
-            message: "internal server error"
-        })
-    }
-})
-
-noteRoutes.get("/content",authMiddleware,async (req,res)=>{
+noteRoutes.get("/", authMiddleware, async (req,res)=>{
     if(!req.userId){
         res.status(401).json({
             message: "unauthorized"
@@ -71,7 +17,8 @@ noteRoutes.get("/content",authMiddleware,async (req,res)=>{
     }
     const content = await prisma.note.findMany({
         where: {
-            userId: req.userId
+            userId: req.userId,
+            trashedAt: null
         },
         include: {
             tags: true
@@ -83,7 +30,7 @@ noteRoutes.get("/content",authMiddleware,async (req,res)=>{
     });
 })
 
-noteRoutes.post("/content", authMiddleware,async (req,res)=>{
+noteRoutes.post("/", authMiddleware, async (req,res)=>{
     try{
     const parsedData = contentSchema.safeParse(req.body);
 
@@ -155,7 +102,7 @@ noteRoutes.post("/content", authMiddleware,async (req,res)=>{
     }
 })
 
-noteRoutes.patch("/content/:id", authMiddleware,async (req,res)=>{
+noteRoutes.patch("/:id", authMiddleware, async (req,res)=>{
     const parsedData = contentUpdateSchema.safeParse(req.body);
     const noteId = String(req.params.id);
 
@@ -257,109 +204,13 @@ noteRoutes.patch("/content/:id", authMiddleware,async (req,res)=>{
     })
 })
 
-noteRoutes.post("/brain/share",authMiddleware, async (req,res)=>{
+noteRoutes.delete("/:id", authMiddleware, async (req,res)=>{
     try{
-    const parsedData = linkSchema.safeParse(req.body);
-
-    if(!parsedData.success){
-        res.status(400).json({
-            message: "error in input"
-        })
-        return
-    }
-    if(!req.userId){
-        res.status(403).json({
-            message: "not authorized"
-        })
-        return
-    }
-
-    const share = parsedData.data.share;
-
-    let share_link = await prisma.shareLink.findUnique({
-            where:{
-                userId: req.userId
-            },
-            select:{
-                isActive: true,
-                hash: true
-            }
-        })
-    
-    if(!share_link && !share){
-        res.status(400).json({
-            message: "shareable link is not created yet"
-        })
-        return
-    }
-    
-    if(share == false){
-        if(share_link?.isActive == true){
-            await prisma.shareLink.update({
-                where:{
-                    userId: req.userId
-                },
-                data:{
-                    isActive: false,
-                }
-            })
-        }
-
-        res.status(200).json({
-            isActive: false,
-            link: null
-        })
-        return
-    }else if(share == true){
-        
-        if(!share_link){
-            const new_link: string = uuidv4();
-            share_link = await prisma.shareLink.create({
-                data:{
-                    hash: new_link,
-                    isActive : true,
-                    userId : req.userId
-                }
-            })
-
-            res.status(200).json({
-                isActive: true,
-                link: new_link
-            })
-            return
-        }
-
-        if(share_link.isActive == false){
-            await prisma.shareLink.update({
-                where:{
-                    userId: req.userId
-                },
-                data:{
-                    isActive: true
-                }
-            })
-        }
-
-        res.status(200).json({
-            isActive: true,
-            link: share_link.hash
-        })
-        return
-    }
-    return
-    }catch(error){
-        return res.status(500).json({
-            message: "internal server error"
-        })
-    }
-})
-
-noteRoutes.delete("/content",authMiddleware, async (req,res)=>{
-    try{
-    const contentId = req.body.contentId;
+    // const contentId = req.body.contentId;
+    const contentId = req.params.id;
 
     if(!contentId){
-        res.status(403).json({
+        res.status(404).json({
             message: "ID Incorrect"
         })
         return
@@ -374,17 +225,18 @@ noteRoutes.delete("/content",authMiddleware, async (req,res)=>{
         return
     }
 
-    await prisma.note.delete({
+    await prisma.note.update({
         where:{
-            userId: req.userId,
-            id: contentIdString
+            id: contentIdString,
+            userId: req.userId
         },
-        include:{
-            tags: true
+        data:{
+            trashedAt: new Date()
         }
     })
-    res.status(200).json({
-        message: "successfully deleted"
+
+    res.status(204).json({
+        message: "No Content"
     })
     }catch(error){
         return res.status(500).json({
