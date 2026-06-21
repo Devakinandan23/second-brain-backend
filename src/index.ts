@@ -17,9 +17,5 @@ app.use("/api/v1/content",noteRoutes);
 app.use("/api/v1/brain",brainRoutes);
 app.use("/api/v1/trash",trashRoutes);
 
-app.get("/all", async (req,res)=>{
-    const notes = await prisma.note.findMany();
-})
-
 
 app.listen(3000);
