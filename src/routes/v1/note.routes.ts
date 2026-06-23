@@ -246,3 +246,61 @@ noteRoutes.delete("/:id", authMiddleware, async (req,res)=>{
     }
 })
 
+noteRoutes.get("/export", authMiddleware, async (req, res) => {
+    if (!req.userId) {
+        res.status(401).json({ message: "unauthorized" });
+        return;
+    }
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.userId },
+            select: { username: true }
+        });
+
+        const notes = await prisma.note.findMany({
+            where: {
+                userId: req.userId,
+                trashedAt: null
+            },
+            include: {
+                tags: {
+                    select: { title: true }
+                }
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        const entries = notes.map((note) => ({
+            id: note.id,
+            sourceType: note.sourceType,
+            title: note.title,
+            link: note.link ?? null,
+            description: note.description ?? null,
+            content: note.content ?? null,
+            thumbnail: note.thumbnail ?? null,
+            authorName: note.authorName ?? null,
+            tags: note.tags.map((t) => t.title),
+            isPublic: note.isPublic,
+            isFavorite: note.isFavorite,
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt,
+        }));
+
+        const payload = {
+            exportedAt: new Date().toISOString(),
+            version: "1.0",
+            username: user?.username ?? "unknown",
+            totalEntries: entries.length,
+            entries,
+        };
+
+        const filename = `second-brain-export-${new Date().toISOString().slice(0, 10)}.json`;
+
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.status(200).json(payload);
+    } catch (error) {
+        res.status(500).json({ message: "Internal Error", error: `${error}` });
+    }
+});
