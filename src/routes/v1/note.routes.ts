@@ -263,6 +263,7 @@ noteRoutes.get("/export", authMiddleware, async (req, res) => {
                 userId: req.userId,
                 trashedAt: null
             },
+            //include title for tags
             include: {
                 tags: {
                     select: { title: true }
