@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { contentSchema, contentUpdateSchema} from "../../schema/note.schema.js";
+import { contentSchema, contentUpdateSchema, importSchema } from "../../schema/note.schema.js";
 import { prisma } from "../../lib/prisma.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { v4 as uuidv4, validate as isValidUUID } from 'uuid';
@@ -301,6 +301,69 @@ noteRoutes.get("/export", authMiddleware, async (req, res) => {
         res.setHeader("Content-Type", "application/json");
         res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
         res.status(200).json(payload);
+    } catch (error) {
+        res.status(500).json({ message: "Internal Error", error: `${error}` });
+    }
+});
+
+noteRoutes.post("/import", authMiddleware, async (req, res) => {
+    if (!req.userId) {
+        res.status(401).json({ message: "unauthorized" });
+        return;
+    }
+
+    try {
+        const parsedData = importSchema.safeParse(req.body);
+        if (!parsedData.success) {
+            res.status(400).json({ message: "validation error", errors: parsedData.error });
+            return;
+        }
+
+        if (parsedData.data.version !== "1.0") {
+            res.status(400).json({ message: "Unsupported export version" });
+            return;
+        }
+
+        let imported = 0;
+        let skipped = 0;
+        let failed = 0;
+
+        for (const entry of parsedData.data.entries) {
+            try {
+                await prisma.note.create({
+                    data: {
+                        sourceType: entry.sourceType as any,
+                        link: entry.link ?? null,
+                        title: entry.title,
+                        extractedTitle: entry.title,
+                        content: entry.content ?? null,
+                        description: entry.description ?? null,
+                        thumbnail: entry.thumbnail ?? null,
+                        authorName: entry.authorName ?? null,
+                        isPublic: entry.isPublic,
+                        isFavorite: entry.isFavorite,
+                        userId: req.userId,
+                        tags: {
+                            connectOrCreate: entry.tags.map((tag) => ({
+                                where: { title: tag },
+                                create: { title: tag }
+                            }))
+                        }
+                    }
+                });
+                imported++;
+            } catch (err: any) {
+                // Prisma unique constraint violation (P2002) for @@unique([userId, link, title])
+                if (err.code === 'P2002') {
+                    skipped++;
+                } else {
+                    console.error("Failed to import note:", err);
+                    failed++;
+                }
+            }
+        }
+
+        res.status(200).json({ imported, skipped, failed });
     } catch (error) {
         res.status(500).json({ message: "Internal Error", error: `${error}` });
     }

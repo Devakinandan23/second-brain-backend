@@ -42,6 +42,7 @@ model Note {
   @@index([createdAt])
   @@index([userId, createdAt])
   @@index([title])
+  @@unique([userId, link, title])
 }
 
 model Tag {

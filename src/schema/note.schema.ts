@@ -19,7 +19,7 @@ export const contentSchema = z.object({
     link: z.url(),
     title: z
         .string()
-        .max(200, "Title cannot exceed 200 characters"),
+        .max(1000, "Title cannot exceed 1000 characters"),
     extractedTitle:
         z
         .string()
@@ -54,7 +54,7 @@ export const contentUpdateSchema = z.object({
     link: z.url().optional().nullable(),
     title: z
         .string()
-        .max(200, "Title cannot exceed 200 characters")
+        .max(1000, "Title cannot exceed 1000 characters")
         .optional(),
     extractedTitle:
         z
@@ -94,3 +94,26 @@ export const contentUpdateSchema = z.object({
 export const linkSchema = z.object({
     share: z.boolean()
 }) 
+
+export const importSchema = z.object({
+    version: z.string().default("1.0"),
+    entries: z.array(z.object({
+        sourceType: z.enum([
+            "YOUTUBE",
+            "TWITTER",
+            "NOTION",
+            "GOOGLE_DOC",
+            "WEBSITE",
+            "INTERNAL"
+        ]).default("INTERNAL"),
+        link: z.string().url().nullable().optional(),
+        title: z.string().min(1, "Title is required").max(1000, "Title cannot exceed 1000 characters"),
+        content: z.string().nullable().optional(),
+        description: z.string().nullable().optional(),
+        thumbnail: z.string().nullable().optional(),
+        authorName: z.string().nullable().optional(),
+        tags: z.array(z.string()).default([]),
+        isPublic: z.boolean().default(false),
+        isFavorite: z.boolean().default(false)
+    })).min(1, "At least one note is required")
+})
