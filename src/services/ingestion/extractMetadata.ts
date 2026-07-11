@@ -59,7 +59,6 @@ export async function extractMetadata(link: string) {
         }, 
         timeout: 5000 
     });
-    console.log("+++++====",response.data.slice(0, 2000));
 
 
     const $ = cheerio.load(response.data);

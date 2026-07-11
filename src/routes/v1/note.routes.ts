@@ -64,8 +64,6 @@ noteRoutes.post("/", authMiddleware, async (req,res)=>{
     //     return
     // }
 
-    console.log("Meta&&&", JSON.stringify(await extractMetadata(parsedData.data.link), null, 2));
-
     const content = await prisma.note.create({
         data: {
             sourceType:extractedData.sourceType,
