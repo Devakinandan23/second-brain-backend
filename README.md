@@ -3,6 +3,8 @@
 A robust, secure, and metadata-aware backend API that powers the Second Brain platform. It handles user authentication, data persistence, and automatic metadata extraction from various external web sources.
 
 ## ✨ Key Features
+- **Multi-User Architecture**: Built from the ground up to support multiple isolated user accounts with strict ownership checks.
+- **Trash Manager**: Soft-delete functionality for notes, allowing for a robust recycle bin / recovery workflow.
 - **Secure Authentication**: JWT-based auth with bcrypt password hashing and comprehensive Zod validation.
 - **Smart Ingestion Pipeline**: Automatically extracts titles, descriptions, and thumbnails from YouTube, Twitter, Notion, and general web links using Cheerio.
 - **Knowledge Organization**: Tagging system with many-to-many relationships for flexible content categorization.
