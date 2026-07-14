@@ -10,8 +10,9 @@ datasource db {
 model User {
   id        Int        @id @default(autoincrement())
   username  String     @unique
-  password  String
-  createdAt DateTime   @default(now())
+  password      String
+  passwordHint  String?
+  createdAt     DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   notes     Note[]
   tags      Tag[]

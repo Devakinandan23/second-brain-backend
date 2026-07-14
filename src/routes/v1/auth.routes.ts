@@ -1,7 +1,7 @@
 import { Router } from "express";
 import jwt from 'jsonwebtoken';
 import { prisma } from "../../lib/prisma.js";
-import { userSchema } from "../../schema/user.schema.js";
+import { userSchema, userSchemaSignin } from "../../schema/user.schema.js";
 import bcrypt from 'bcrypt';
 
 
@@ -12,14 +12,16 @@ authRoutes.post("/signup",async (req,res)=>{
     try{
     const parsedData = userSchema.safeParse(req.body);
     if(!parsedData.success){
+        const errors = parsedData.error.issues.map(i => i.message).join(", ");
         res.status(411).json({
-            message: "Error in input"
+            message: errors
         })
         return
     }
 
     const username = parsedData.data.username;
     const password = parsedData.data.password;
+    const passwordHint = parsedData.data.passwordHint || null;
 
     const hashPassword = await bcrypt.hash(password,11);
 
@@ -36,7 +38,8 @@ authRoutes.post("/signup",async (req,res)=>{
     await prisma.user.create({
         data:{
             username: username,
-            password: hashPassword  
+            password: hashPassword,
+            passwordHint: passwordHint
         }
     })
     res.status(200).json({
@@ -53,11 +56,11 @@ authRoutes.post("/signup",async (req,res)=>{
 authRoutes.post("/signin",async (req,res)=>{
     try{
     console.log("Request received");
-    const parsedData = userSchema.safeParse(req.body);
+    const parsedData = userSchemaSignin.safeParse(req.body);
 
     if(!parsedData.success){
         res.status(403).json({
-            message: "wrong email/password please check"
+            message: "Invalid username or password"
         })
         return
     }
@@ -79,7 +82,8 @@ authRoutes.post("/signin",async (req,res)=>{
 
     if(!checkPassword){
         res.status(403).json({
-            message: "Wrong email password"
+            message: "Incorrect password",
+            hint: user.passwordHint || null
         })
         return
     }

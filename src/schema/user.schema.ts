@@ -16,5 +16,17 @@ export const userSchema = z.object({
         .regex(
             /[!@#$%^&*(),.?":{}|<>]/,
             "Need special character"
-        )
+        ),
+    passwordHint: z.string().optional()
+})
+
+export const userSchemaSignin = z.object({
+    username: z
+        .string()
+        .min(3)
+        .max(50)
+        .regex(/[a-zA-Z]/, "Invalid username"),
+    password: z
+        .string()
+        .max(50)
 })
