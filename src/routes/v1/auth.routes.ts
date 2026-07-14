@@ -52,6 +52,7 @@ authRoutes.post("/signup",async (req,res)=>{
 
 authRoutes.post("/signin",async (req,res)=>{
     try{
+    console.log("Request received");
     const parsedData = userSchema.safeParse(req.body);
 
     if(!parsedData.success){

@@ -47,6 +47,7 @@ noteRoutes.post("/", authMiddleware, async (req,res)=>{
         })
         return
     }
+    const userId = req.userId;
 
     const new_content = JSON.stringify(await extractMetadata(parsedData.data.link),null,2);
 
@@ -75,14 +76,18 @@ noteRoutes.post("/", authMiddleware, async (req,res)=>{
             thumbnail: extractedData.thumbnail ?? null,
             authorName: parsedData.data.authorName ?? null,        
             metadata: extractedData.metadata ? (extractedData.metadata as any) : undefined,
-            userId: req.userId,
+            userId,
             tags: {
                 connectOrCreate: parsedData.data.tags.map((tag) => ({
                     where: {
-                        title: tag,
+                        userId_title: {
+                            userId,
+                            title: tag,
+                        },
                     },
                     create: {
                         title: tag,
+                        userId,
                     },
                 })),
             }
@@ -124,6 +129,7 @@ noteRoutes.patch("/:id", authMiddleware, async (req,res)=>{
         })
         return
     }
+    const userId = req.userId;
 
     const updateData: Record<string, any> = {};
 
@@ -172,8 +178,16 @@ noteRoutes.patch("/:id", authMiddleware, async (req,res)=>{
         updateData.tags = {
             set: [],
             connectOrCreate: parsedData.data.tags.map((tag) => ({
-                where: { title: tag },
-                create: { title: tag },
+                where: {
+                    userId_title: {
+                        userId,
+                        title: tag,
+                    },
+                },
+                create: {
+                    title: tag,
+                    userId,
+                },
             })),
         };
     }
@@ -249,7 +263,6 @@ noteRoutes.get("/export", authMiddleware, async (req, res) => {
         res.status(401).json({ message: "unauthorized" });
         return;
     }
-
     try {
         const user = await prisma.user.findUnique({
             where: { id: req.userId },
@@ -267,7 +280,7 @@ noteRoutes.get("/export", authMiddleware, async (req, res) => {
                     select: { title: true }
                 }
             },
-            orderBy: { createdAt: "desc" }
+            orderBy: { createdAt: "asc" }
         });
 
         const entries = notes.map((note) => ({
@@ -309,6 +322,7 @@ noteRoutes.post("/import", authMiddleware, async (req, res) => {
         res.status(401).json({ message: "unauthorized" });
         return;
     }
+    const userId = req.userId;
 
     try {
         const parsedData = importSchema.safeParse(req.body);
@@ -340,18 +354,26 @@ noteRoutes.post("/import", authMiddleware, async (req, res) => {
                         authorName: entry.authorName ?? null,
                         isPublic: entry.isPublic,
                         isFavorite: entry.isFavorite,
-                        userId: req.userId,
+                        userId,
                         tags: {
                             connectOrCreate: entry.tags.map((tag) => ({
-                                where: { title: tag },
-                                create: { title: tag }
-                            }))
-                        }
+                                where: {
+                                    userId_title: {
+                                        userId,
+                                        title: tag,
+                                    },
+                                },
+                                create: {
+                                    title: tag,
+                                    userId,
+                                },
+                            })),
+                        },
                     }
                 });
                 imported++;
             } catch (err: any) {
-                // Prisma unique constraint violation (P2002) for @@unique([userId, link, title])
+                // Prisma unique constraint violation during import.
                 if (err.code === 'P2002') {
                     skipped++;
                 } else {
