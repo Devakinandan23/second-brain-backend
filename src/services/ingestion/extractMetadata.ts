@@ -6,7 +6,6 @@ type SourceType = "YOUTUBE" | "TWITTER" | "NOTION" | "GOOGLE_DOC" | "WEBSITE" | 
 function classifySource(link: string) {
     const myUrl = new URL(link);
 
-    console.log("URL^&^&^&",myUrl);
     let source:SourceType = "WEBSITE";
 
     if (myUrl.hostname == "www.youtube.com"){

@@ -22,6 +22,4 @@ app.use("/api/v1/brain",brainRoutes);
 app.use("/api/v1/trash",trashRoutes);
 
 
-app.listen(3001, "0.0.0.0", () => {
-    console.log("Backend server is running on port 3001");
-});
+app.listen(3001, "0.0.0.0");
