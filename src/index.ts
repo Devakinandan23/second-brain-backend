@@ -5,6 +5,7 @@ import { authRoutes } from './routes/v1/auth.routes.js';
 import { noteRoutes } from './routes/v1/note.routes.js';
 import { trashRoutes } from './routes/v1/trash.routes.js';
 import { brainRoutes } from './routes/v1/brain.routes.js';
+import { prisma } from './lib/prisma.js';
 
 const app = express();
 const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
@@ -18,6 +19,19 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
     res.send("Second Brain Backend is running!");
+});
+
+app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+});
+
+app.get("/ready", async (_req, res) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.status(200).json({ status: "ready" });
+    } catch {
+        res.status(503).json({ status: "not ready" });
+    }
 });
 
 app.use("/api/v1",authRoutes);
