@@ -25,7 +25,7 @@ describe('Auth Routes', () => {
                 .send({ username: 'sh' }); // assuming Zod fails this
 
             expect(response.status).toBe(411);
-            expect(response.body).toEqual({ message: 'Error in input' });
+            expect(response.body.message).toContain('Too small');
         });
 
         it('should return 403 if user already exists', async () => {
@@ -61,7 +61,7 @@ describe('Auth Routes', () => {
                 .send({ username: 'sh' });
 
             expect(response.status).toBe(403);
-            expect(response.body.message).toContain('wrong email/password please check');
+            expect(response.body).toEqual({ message: 'Invalid username or password' });
         });
 
         it('should return 403 if username not found', async () => {
@@ -84,7 +84,7 @@ describe('Auth Routes', () => {
                 .send({ username: 'testuser', password: 'Wrongpass1!' });
 
             expect(response.status).toBe(403);
-            expect(response.body).toEqual({ message: 'Wrong email password' });
+            expect(response.body).toEqual({ message: 'Incorrect password', hint: null });
         });
 
         it('should return 200 and token on successful signin', async () => {
@@ -98,6 +98,8 @@ describe('Auth Routes', () => {
 
             expect(response.status).toBe(200);
             expect(response.body).toEqual({ token: 'mocked_token', username: 'testuser' });
+            expect(response.headers['set-cookie']?.[0]).toContain('sb_session=mocked_token');
+            expect(response.headers['set-cookie']?.[0]).toContain('HttpOnly');
         });
     });
 });

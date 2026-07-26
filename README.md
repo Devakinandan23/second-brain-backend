@@ -62,3 +62,9 @@ The API is structured around versioned REST endpoints (`/api/v1`):
    npm run dev
    ```
    The API will be available at `http://localhost:3001` (or your configured port).
+# Second Brain Backend
+
+## Google OAuth
+
+Google sign-in setup, environment variables, migration, and local testing are
+documented in [OAUTH_SETUP.md](./OAUTH_SETUP.md).

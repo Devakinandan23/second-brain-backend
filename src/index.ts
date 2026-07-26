@@ -1,15 +1,19 @@
 import express from 'express';
 import cors from 'cors'
-import { prisma } from './lib/prisma.js';
-import jwt from 'jsonwebtoken';
-import { userSchema } from './schema/user.schema.js';
+import cookieParser from 'cookie-parser';
 import { authRoutes } from './routes/v1/auth.routes.js';
 import { noteRoutes } from './routes/v1/note.routes.js';
 import { trashRoutes } from './routes/v1/trash.routes.js';
 import { brainRoutes } from './routes/v1/brain.routes.js';
 
 const app = express();
-app.use(cors());
+const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
+
+app.use(cors({
+    origin: frontendUrl,
+    credentials: true,
+}));
+app.use(cookieParser());
 app.use(express.json());
 
 app.get("/", (req, res) => {
