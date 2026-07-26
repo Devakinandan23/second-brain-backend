@@ -26,4 +26,5 @@ app.use("/api/v1/brain",brainRoutes);
 app.use("/api/v1/trash",trashRoutes);
 
 
-app.listen(3001, "0.0.0.0");
+const port = Number(process.env.PORT ?? 3001);
+app.listen(port, "0.0.0.0");

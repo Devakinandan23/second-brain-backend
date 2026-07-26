@@ -99,8 +99,8 @@ noteRoutes.post("/", authMiddleware, async (req,res)=>{
         content
     })
     }catch(error){
-        return res.status(400).json({
-            error: `Error is ${error}`
+        return res.status(500).json({
+            message: "Internal Error"
         })
     }
 })
@@ -252,8 +252,7 @@ noteRoutes.delete("/:id", authMiddleware, async (req,res)=>{
     })
     }catch(error){
         return res.status(500).json({
-            message: "Internal Error",
-            error: `${error}`
+            message: "Internal Error"
         })
     }
 })
@@ -313,7 +312,7 @@ noteRoutes.get("/export", authMiddleware, async (req, res) => {
         res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
         res.status(200).json(payload);
     } catch (error) {
-        res.status(500).json({ message: "Internal Error", error: `${error}` });
+        res.status(500).json({ message: "Internal Error" });
     }
 });
 
@@ -385,6 +384,6 @@ noteRoutes.post("/import", authMiddleware, async (req, res) => {
 
         res.status(200).json({ imported, skipped, failed });
     } catch (error) {
-        res.status(500).json({ message: "Internal Error", error: `${error}` });
+        res.status(500).json({ message: "Internal Error" });
     }
 });

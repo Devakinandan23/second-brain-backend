@@ -112,8 +112,7 @@ authRoutes.post("/signup",async (req,res)=>{
 
     }catch(error){
         return res.status(500).json({
-            message: "Internal Server Error",
-            error: error
+            message: "Internal Server Error"
         })
     }
 })
@@ -170,8 +169,7 @@ authRoutes.post("/signin",async (req,res)=>{
 
     }catch(error){
         res.status(500).json({
-            message: "Fail to generate token",
-            error: error
+            message: "Fail to generate token"
         })
     }
 })
@@ -319,6 +317,5 @@ authRoutes.post("/auth/logout", (_req, res) => {
     clearSessionCookie(res);
     res.status(204).send();
 });
-
 
 
