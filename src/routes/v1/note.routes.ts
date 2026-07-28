@@ -49,8 +49,6 @@ noteRoutes.post("/", authMiddleware, async (req,res)=>{
     }
     const userId = req.userId;
 
-    const new_content = JSON.stringify(await extractMetadata(parsedData.data.link),null,2);
-
     const extractedData = await extractMetadata(parsedData.data.link);
     if(!extractedData){
         res.status(400).json({
