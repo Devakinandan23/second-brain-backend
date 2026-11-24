@@ -2,6 +2,10 @@
 
 A robust, secure, and metadata-aware backend API that powers the Second Brain platform. It handles user authentication, data persistence, and automatic metadata extraction from various external web sources.
 
+## Related Repository
+
+The [Second Brain Frontend](https://github.com/Devakinandan23/second-brain-fe) is the Next.js interface for this API.
+
 ## ✨ Key Features
 - **Multi-User Architecture**: Built from the ground up to support multiple isolated user accounts with strict ownership checks.
 - **Trash Manager**: Soft-delete functionality for notes, allowing for a robust recycle bin / recovery workflow.
