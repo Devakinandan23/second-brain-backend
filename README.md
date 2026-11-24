@@ -6,6 +6,13 @@ A robust, secure, and metadata-aware backend API that powers the Second Brain pl
 
 The [Second Brain Frontend](https://github.com/Devakinandan23/second-brain-fe) is the Next.js interface for this API.
 
+## MCP Server
+
+The backend also exposes read-only `search_notes` and `get_note` tools over local
+stdio or a private, bearer-authenticated Streamable HTTP endpoint at `/mcp`.
+See [the MCP development and deployment guide](./docs/MCP.md) for setup, Codex
+connection commands, protocol explanations, tests, and the production checklist.
+
 ## ✨ Key Features
 - **Multi-User Architecture**: Built from the ground up to support multiple isolated user accounts with strict ownership checks.
 - **Trash Manager**: Soft-delete functionality for notes, allowing for a robust recycle bin / recovery workflow.

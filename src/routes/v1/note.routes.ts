@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { v4 as uuidv4, validate as isValidUUID } from 'uuid';
 import { extractMetadata } from "../../services/ingestion/extractMetadata.js";
+import { listActiveNotes } from "../../services/notes.service.js";
 
 
 export const noteRoutes = Router();
@@ -15,15 +16,7 @@ noteRoutes.get("/", authMiddleware, async (req,res)=>{
         })
         return
     }
-    const content = await prisma.note.findMany({
-        where: {
-            userId: req.userId,
-            trashedAt: null
-        },
-        include: {
-            tags: true
-        }
-    });
+    const content = await listActiveNotes(prisma, req.userId);
 
     res.status(200).json({
         content
